@@ -5,10 +5,25 @@ import { profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
+const SUPABASE_STORAGE_ORIGIN = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+  : null
+
 const schema = z.object({
   name: z.string().min(1).max(255).optional(),
   phone: z.string().max(50).nullable().optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  avatarUrl: z
+    .string()
+    .url()
+    .nullable()
+    .optional()
+    .refine(
+      (url) => {
+        if (!url || !SUPABASE_STORAGE_ORIGIN) return true
+        return url.startsWith(SUPABASE_STORAGE_ORIGIN)
+      },
+      { message: 'Avatar must be hosted on the project storage' }
+    ),
 })
 
 export async function PATCH(req: NextRequest) {

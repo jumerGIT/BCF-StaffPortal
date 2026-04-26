@@ -8,6 +8,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   if (!user) redirect('/login')
   if (!profile) redirect('/login')
+  if (!profile.isActive) redirect('/login')
   if (profile.mustChangePassword) redirect('/change-password')
 
   return (

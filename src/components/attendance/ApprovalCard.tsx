@@ -91,7 +91,7 @@ export function ApprovalCard({ entry }: { entry: TimeEntryWithRelations }) {
         <div className="mt-3 space-y-2">
           <input
             type="text"
-            placeholder="Rejection reason (optional)"
+            placeholder="Rejection reason (required)"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             className="input input-bordered input-sm w-full"
@@ -100,6 +100,7 @@ export function ApprovalCard({ entry }: { entry: TimeEntryWithRelations }) {
             size="sm"
             variant="danger"
             loading={reject.isPending}
+            disabled={!rejectReason.trim()}
             onClick={() => reject.mutate()}
           >
             Confirm Rejection

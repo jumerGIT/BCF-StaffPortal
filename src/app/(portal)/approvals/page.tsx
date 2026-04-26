@@ -1,24 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { timeEntries, profiles } from '@/lib/db/schema'
+import { timeEntries } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
 import { ApprovalCard } from '@/components/attendance/ApprovalCard'
+import { getSession } from '@/lib/session'
+import { isManager } from '@/lib/roles'
 import type { TimeEntryWithRelations } from '@/types'
 
 export default async function ApprovalsPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const profile = await db.query.profiles.findFirst({
-    where: eq(profiles.id, user.id),
-  })
-  if (!profile || !['manager', 'admin'].includes(profile.role)) {
-    redirect('/dashboard')
-  }
+  const { user, profile } = await getSession()
+  if (!user || !profile) redirect('/login')
+  if (!isManager(profile.role)) redirect('/dashboard')
 
   const pending = await db.query.timeEntries.findMany({
     where: eq(timeEntries.status, 'pending'),

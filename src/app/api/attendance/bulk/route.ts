@@ -27,7 +27,13 @@ export async function POST(req: NextRequest) {
 
   const { job_id, entries, job_date } = parsed.data
 
-  const values = entries.map((row) => {
+  const values: {
+    userId: string; jobId: string; clockIn: Date; clockOut: Date | undefined;
+    totalHours: string | undefined; isOvertime: boolean; entrySource: 'site_head';
+    enteredBy: string; attendanceStatus: string; siteHeadNote: string | undefined; status: 'pending';
+  }[] = []
+
+  for (const row of entries) {
     const clockIn =
       row.attendance_status !== 'absent' && row.clock_in
         ? new Date(`${job_date}T${row.clock_in}:00`)
@@ -36,12 +42,19 @@ export async function POST(req: NextRequest) {
       row.attendance_status !== 'absent' && row.clock_out
         ? new Date(`${job_date}T${row.clock_out}:00`)
         : undefined
+
+    if (clockIn && clockOut && clockOut <= clockIn)
+      return NextResponse.json(
+        { error: `Clock out must be after clock in for user ${row.user_id}` },
+        { status: 422 }
+      )
+
     const totalHours =
       clockIn && clockOut
         ? ((clockOut.getTime() - clockIn.getTime()) / 3600000).toFixed(2)
         : undefined
 
-    return {
+    values.push({
       userId: row.user_id,
       jobId: job_id,
       clockIn: clockIn ?? new Date(),
@@ -53,8 +66,8 @@ export async function POST(req: NextRequest) {
       attendanceStatus: row.attendance_status,
       siteHeadNote: row.note,
       status: 'pending' as const,
-    }
-  })
+    })
+  }
 
   const inserted = await db.insert(timeEntries).values(values).returning()
 

@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
   const clockOut = attendance_status !== 'absent' && clock_out
     ? new Date(`${date}T${clock_out}:00`)
     : undefined
+
+  if (clockOut && clockOut <= clockIn)
+    return NextResponse.json({ error: 'Clock out must be after clock in' }, { status: 422 })
+
   const totalHours = clockOut
     ? ((clockOut.getTime() - clockIn.getTime()) / 3600000).toFixed(2)
     : undefined

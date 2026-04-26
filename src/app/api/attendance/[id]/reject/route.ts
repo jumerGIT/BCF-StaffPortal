@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { timeEntries, profiles } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { writeAuditLog } from '@/lib/db/audit'
-import { approvalSchema } from '@/lib/validations/attendance'
+import { rejectionSchema } from '@/lib/validations/attendance'
 
 export async function POST(
   req: NextRequest,
@@ -25,7 +25,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const parsed = approvalSchema.safeParse(body)
+  const parsed = rejectionSchema.safeParse(body)
   if (!parsed.success)
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 

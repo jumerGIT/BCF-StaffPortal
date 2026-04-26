@@ -11,7 +11,8 @@ const pool = new Pool({
   user: 'postgres.alguptfbqkekascenzja',
   password: 'Pa$$w0rd!12345_BCF-Staff-Portal',
   ssl: { rejectUnauthorized: false },
-  max: 10,
+  max: 1, // serverless: PgBouncer handles real pooling; one connection per lambda is enough
+  idleTimeoutMillis: 10_000,
 })
 
 export const db = drizzle(pool, { schema })

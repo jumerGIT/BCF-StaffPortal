@@ -1,20 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { profiles, timeEntries } from '@/lib/db/schema'
+import { timeEntries } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
 import { ProfileClient } from '@/components/profile/ProfileClient'
 import { startOfMonth } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const profile = await db.query.profiles.findFirst({ where: eq(profiles.id, user.id) })
-  if (!profile) redirect('/login')
+  const { user, profile } = await getSession()
+  if (!user || !profile) redirect('/login')
 
   const monthStart = startOfMonth(new Date())
 
@@ -22,9 +18,7 @@ export default async function ProfilePage() {
     db.query.timeEntries.findMany({
       where: and(eq(timeEntries.userId, user.id), gte(timeEntries.clockIn, monthStart)),
     }),
-    db.query.timeEntries.findMany({
-      where: eq(timeEntries.userId, user.id),
-    }),
+    db.query.timeEntries.findMany({ where: eq(timeEntries.userId, user.id) }),
   ])
 
   const monthHours = monthData.reduce((sum, e) => sum + (e.totalHours ? parseFloat(String(e.totalHours)) : 0), 0)

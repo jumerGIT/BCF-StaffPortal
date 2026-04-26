@@ -1,18 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { timeEntries } from '@/lib/db/schema'
 import { and, inArray, gte, isNull } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
 import { JobLiveCard } from '@/components/jobs/JobLiveCard'
 import type { JobWithRelations, TimeEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 export default async function JobsPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { user } = await getSession()
   if (!user) redirect('/login')
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -35,13 +32,7 @@ export default async function JobsPage() {
       ? await db
           .select()
           .from(timeEntries)
-          .where(
-            and(
-              inArray(timeEntries.jobId, jobIds),
-              gte(timeEntries.clockIn, todayStart),
-              isNull(timeEntries.deletedAt)
-            )
-          )
+          .where(and(inArray(timeEntries.jobId, jobIds), gte(timeEntries.clockIn, todayStart), isNull(timeEntries.deletedAt)))
       : []
 
   return (

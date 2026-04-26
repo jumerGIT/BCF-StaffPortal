@@ -1,19 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { auditLogs, profiles } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { auditLogs } from '@/lib/db/schema'
+import { desc } from 'drizzle-orm'
 import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
 import { AuditTable } from '@/components/audit/AuditTable'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AuditPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const profile = await db.query.profiles.findFirst({ where: eq(profiles.id, user.id) })
-  if (!profile || !['manager', 'admin'].includes(profile.role)) redirect('/dashboard')
+  const { user, profile } = await getSession()
+  if (!user || !profile) redirect('/login')
+  if (!['manager', 'admin'].includes(profile.role)) redirect('/dashboard')
 
   const logs = await db.query.auditLogs.findMany({
     with: { changedBy: true },

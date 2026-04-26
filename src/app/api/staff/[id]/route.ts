@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { adminSupabase } from '@/lib/supabase/admin'
 import { db } from '@/lib/db'
-import { profiles } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { profiles, timeEntries, auditLogs } from '@/lib/db/schema'
+import { eq, or } from 'drizzle-orm'
 import { z } from 'zod'
 
 const updateSchema = z.object({
@@ -76,16 +76,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   try {
-    await db.delete(profiles).where(eq(profiles.id, id))
+    await db.transaction(async (tx) => {
+      // Null out nullable approvedBy references
+      await tx.update(timeEntries).set({ approvedBy: null }).where(eq(timeEntries.approvedBy, id))
+      // Delete time entries where user is the subject or the one who entered it (notNull FKs)
+      await tx.delete(timeEntries).where(or(eq(timeEntries.userId, id), eq(timeEntries.enteredBy, id)))
+      // Delete audit logs where this user was the actor (notNull FK)
+      await tx.delete(auditLogs).where(eq(auditLogs.changedBy, id))
+      // Now safe to delete the profile
+      await tx.delete(profiles).where(eq(profiles.id, id))
+    })
   } catch (e: any) {
-    const msg = e?.message ?? ''
-    if (msg.includes('foreign key') || msg.includes('violates')) {
-      return NextResponse.json(
-        { error: 'Cannot delete this staff member — they have attendance records. Deactivate them instead.' },
-        { status: 409 }
-      )
-    }
-    return NextResponse.json({ error: 'Failed to delete staff member.' }, { status: 500 })
+    return NextResponse.json({ error: e?.message ?? 'Failed to delete staff member.' }, { status: 500 })
   }
 
   const { error: authError } = await adminSupabase.auth.admin.deleteUser(id)

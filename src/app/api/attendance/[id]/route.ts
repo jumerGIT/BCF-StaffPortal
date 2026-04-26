@@ -74,7 +74,7 @@ export async function PUT(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
   // Validate time ordering if both times are present
-  const d = parsed.data as z.infer<typeof privilegedUpdateSchema>
+  const d = parsed.data as unknown as z.infer<typeof privilegedUpdateSchema>
   const newClockIn = d.clockIn ? new Date(d.clockIn) : existing.clockIn
   const newClockOut = d.clockOut ? new Date(d.clockOut) : existing.clockOut
   if (newClockOut && newClockOut <= newClockIn)

@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
   const values: {
     userId: string; jobId: string; clockIn: Date; clockOut: Date | undefined;
     totalHours: string | undefined; isOvertime: boolean; entrySource: 'site_head';
-    enteredBy: string; attendanceStatus: string; siteHeadNote: string | undefined; status: 'pending';
+    enteredBy: string; attendanceStatus: 'present' | 'late' | 'absent';
+    siteHeadNote: string | undefined; status: 'pending';
   }[] = []
 
   for (const row of entries) {

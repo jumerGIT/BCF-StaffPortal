@@ -75,8 +75,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const target = await db.query.profiles.findFirst({ where: eq(profiles.id, id) })
   if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await db.delete(profiles).where(eq(profiles.id, id))
-  await adminSupabase.auth.admin.deleteUser(id)
+  try {
+    await db.delete(profiles).where(eq(profiles.id, id))
+  } catch (e: any) {
+    const msg = e?.message ?? ''
+    if (msg.includes('foreign key') || msg.includes('violates')) {
+      return NextResponse.json(
+        { error: 'Cannot delete this staff member — they have attendance records. Deactivate them instead.' },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({ error: 'Failed to delete staff member.' }, { status: 500 })
+  }
+
+  const { error: authError } = await adminSupabase.auth.admin.deleteUser(id)
+  if (authError) {
+    return NextResponse.json({ error: authError.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -28,6 +28,21 @@ export function useAttendance() {
         if (!r.ok) throw new Error((await r.json()).error)
         return r.json()
       }),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['attendance'] })
+      const previous = queryClient.getQueryData(['attendance'])
+      queryClient.setQueryData(['attendance'], (old: any[] = []) =>
+        old.map((e) =>
+          !e.clockOut && new Date(e.clockIn).toDateString() === new Date().toDateString()
+            ? { ...e, clockOut: new Date().toISOString() }
+            : e
+        )
+      )
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      queryClient.setQueryData(['attendance'], ctx?.previous)
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance'] }),
   })
 

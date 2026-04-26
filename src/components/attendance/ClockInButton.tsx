@@ -32,7 +32,9 @@ function formatElapsed(seconds: number): string {
 export function ClockInButton({ jobId }: { jobId?: string }) {
   const { activeEntry, clockIn, clockOut } = useAttendance()
   const [toast, setToast] = useState<Toast | null>(null)
-  const elapsed = useElapsed(activeEntry?.clockIn)
+  const [clockingOut, setClockingOut] = useState(false)
+  const isActive = !!activeEntry && !clockingOut
+  const elapsed = useElapsed(isActive ? activeEntry?.clockIn : undefined)
 
   useEffect(() => {
     if (!toast) return
@@ -40,9 +42,15 @@ export function ClockInButton({ jobId }: { jobId?: string }) {
     return () => clearTimeout(t)
   }, [toast])
 
+  // Reset clockingOut flag once the query confirms the entry is gone
+  useEffect(() => {
+    if (!activeEntry) setClockingOut(false)
+  }, [activeEntry])
+
   const handleClock = async () => {
     try {
       if (activeEntry) {
+        setClockingOut(true)
         await clockOut.mutateAsync()
         setToast({ message: 'Clocked out successfully.', type: 'success' })
       } else {
@@ -50,6 +58,7 @@ export function ClockInButton({ jobId }: { jobId?: string }) {
         setToast({ message: `Clocked in at ${formatTime(new Date())}.`, type: 'success' })
       }
     } catch (e) {
+      setClockingOut(false)
       setToast({ message: e instanceof Error ? e.message : 'Something went wrong', type: 'error' })
     }
   }
@@ -57,7 +66,7 @@ export function ClockInButton({ jobId }: { jobId?: string }) {
   return (
     <>
       <div className="flex flex-col items-center gap-4">
-        {activeEntry ? (
+        {isActive ? (
           <>
             {/* Running timer */}
             <div className="flex flex-col items-center gap-1">
@@ -84,11 +93,11 @@ export function ClockInButton({ jobId }: { jobId?: string }) {
         <Button
           onClick={handleClock}
           loading={clockIn.isPending || clockOut.isPending}
-          variant={activeEntry ? 'danger' : 'primary'}
+          variant={isActive ? 'danger' : 'primary'}
           size="lg"
           className="w-48"
         >
-          {activeEntry ? 'Clock Out' : 'Clock In'}
+          {isActive ? 'Clock Out' : 'Clock In'}
         </Button>
       </div>
 

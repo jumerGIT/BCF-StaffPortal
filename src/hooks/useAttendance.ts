@@ -9,6 +9,20 @@ export function useAttendance() {
     queryFn: () => fetch('/api/attendance').then((r) => r.json()),
   })
 
+  // Dedicated query for the current user's own active entry — always filtered
+  // by the logged-in user, regardless of role (managers see all in /api/attendance
+  // which caused their activeEntry to be another user's entry).
+  const { data: activeEntry = null } = useQuery({
+    queryKey: ['attendance', 'active'],
+    queryFn: () => fetch('/api/attendance/active').then((r) => r.json()),
+    refetchInterval: 30_000,
+  })
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    queryClient.invalidateQueries({ queryKey: ['attendance', 'active'] })
+  }
+
   const clockIn = useMutation({
     mutationFn: (body: { job_id?: string; van_id?: string }) =>
       fetch('/api/attendance', {
@@ -19,7 +33,7 @@ export function useAttendance() {
         if (!r.ok) throw new Error((await r.json()).error)
         return r.json()
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance'] }),
+    onSuccess: invalidate,
   })
 
   const clockOut = useMutation({
@@ -29,28 +43,14 @@ export function useAttendance() {
         return r.json()
       }),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['attendance'] })
-      const previous = queryClient.getQueryData(['attendance'])
-      queryClient.setQueryData(['attendance'], (old: any[] = []) =>
-        old.map((e) =>
-          !e.clockOut && new Date(e.clockIn).toDateString() === new Date().toDateString()
-            ? { ...e, clockOut: new Date().toISOString() }
-            : e
-        )
-      )
-      return { previous }
+      await queryClient.cancelQueries({ queryKey: ['attendance', 'active'] })
+      queryClient.setQueryData(['attendance', 'active'], null)
     },
-    onError: (_err, _vars, ctx) => {
-      queryClient.setQueryData(['attendance'], ctx?.previous)
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'active'] })
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance'] }),
+    onSuccess: invalidate,
   })
-
-  const activeEntry = entries.find(
-    (e: { clockOut: string | null; clockIn: string }) =>
-      !e.clockOut &&
-      new Date(e.clockIn).toDateString() === new Date().toDateString()
-  )
 
   return { entries, isLoading, clockIn, clockOut, activeEntry }
 }
